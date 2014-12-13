@@ -1,6 +1,7 @@
 /*
     bench.c - Demo program to benchmark open-source compression algorithm
-    Copyright (C) Yann Collet 2012-2014
+    Copyright (C) Yann Collet 2012-2015
+
     GPL v2 License
 
     This program is free software; you can redistribute it and/or modify
@@ -18,8 +19,9 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
     You can contact the author at :
-    - LZ4 homepage : http://fastcompression.blogspot.com/p/lz4.html
-    - LZ4 source repository : http://code.google.com/p/lz4/
+    - LZ4 source repository : http://code.google.com/p/lz4
+    - LZ4 source mirror : https://github.com/Cyan4973/lz4
+    - LZ4 public forum : https://groups.google.com/forum/#!forum/lz4c
 */
 
 //**************************************
@@ -454,7 +456,7 @@ int fullSpeedBench(char** fileNamesTable, int nbFiles)
       // Alloc
       chunkP = (struct chunkParameters*) malloc(((benchedSize / (size_t)chunkSize)+1) * sizeof(struct chunkParameters));
       orig_buff = (char*) malloc((size_t)benchedSize);
-      nbChunks = (int) ((int)benchedSize / chunkSize) + 1;
+      nbChunks = (int) (((int)benchedSize + (chunkSize-1))/ chunkSize);
       maxCompressedChunkSize = LZ4_compressBound(chunkSize);
       compressedBuffSize = nbChunks * maxCompressedChunkSize;
       compressed_buff = (char*)malloc((size_t)compressedBuffSize);
@@ -511,7 +513,7 @@ int fullSpeedBench(char** fileNamesTable, int nbFiles)
               size_t remaining = benchedSize;
               char* in = orig_buff;
               char* out = compressed_buff;
-              nbChunks = (int) ((int)benchedSize / chunkSize) + 1;
+                nbChunks = (int) (((int)benchedSize + (chunkSize-1))/ chunkSize);
               for (i=0; i<nbChunks; i++)
               {
                   chunkP[i].id = i;
@@ -593,6 +595,22 @@ int fullSpeedBench(char** fileNamesTable, int nbFiles)
         }
 
         // Prepare layout for decompression
+        // Init data chunks
+        {
+          int i;
+          size_t remaining = benchedSize;
+          char* in = orig_buff;
+          char* out = compressed_buff;
+            nbChunks = (int) (((int)benchedSize + (chunkSize-1))/ chunkSize);
+          for (i=0; i<nbChunks; i++)
+          {
+              chunkP[i].id = i;
+              chunkP[i].origBuffer = in; in += chunkSize;
+              if ((int)remaining > chunkSize) { chunkP[i].origSize = chunkSize; remaining -= chunkSize; } else { chunkP[i].origSize = (int)remaining; remaining = 0; }
+              chunkP[i].compressedBuffer = out; out += maxCompressedChunkSize;
+              chunkP[i].compressedSize = 0;
+          }
+        }
         for (chunkNb=0; chunkNb<nbChunks; chunkNb++)
         {
             chunkP[chunkNb].compressedSize = LZ4_compress(chunkP[chunkNb].origBuffer, chunkP[chunkNb].compressedBuffer, chunkP[chunkNb].origSize);
